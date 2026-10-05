@@ -90,3 +90,15 @@ jobs:
       - run: |
           echo "PROOF: ran on ${{ needs.route.outputs.runner }} (hosted=${{ needs.route.outputs.hosted }})"
           echo "PROOF: runner.name=$RUNNER_NAME os=$RUNNER_OS"
+
+  # The canary again, in a second pull request from an account that now has a
+  # merged commit in this repository. If this job reaches the queue without an
+  # owner approving the run, then `first_time_contributors` does not protect a
+  # returning contributor and the box's label is reachable by anyone who has
+  # ever landed a typo fix.
+  bypass-canary:
+    name: CANARY targets the box label directly
+    runs-on: [self-hosted, linux, aplan]
+    steps:
+      - run: |
+          echo "CANARY: untrusted code executed on $RUNNER_NAME"
