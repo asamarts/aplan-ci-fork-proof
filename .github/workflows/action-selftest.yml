@@ -1,0 +1,29 @@
+name: Action self-test
+on:
+  push:
+    branches: [main]
+    paths: [action.yml, .github/workflows/action-selftest.yml]
+  pull_request:
+    branches: [main]
+    paths: [action.yml, .github/workflows/action-selftest.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  selftest:
+    name: Self-test
+    runs-on: [self-hosted, linux, aplan]
+    steps:
+      # **Refusal, not redirection.** Unlike the release workflow this one *is*
+      # reachable by a fork pull request: its `on:` includes `pull_request` on
+      # the paths a contributor editing the action would touch. It drives the
+      # action against this repository's own release artefacts, which is the
+      # same argument as the release workflow, so it refuses too.
+      - name: Refuse an untrusted event
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        run: |
+          echo "refusing: ${{ github.event_name }} may not run the self-test" >&2
+          exit 1
+      - run: echo "PROOF: selftest body reached on $RUNNER_NAME"

@@ -1,0 +1,92 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # The router. It decides where every downstream job runs, and it is the first
+  # job a fork pull request reaches, so its own placement matters as much as its
+  # output.
+  #
+  # **Its own runner is conditional, and that is `A1-117`'s fourth criterion.**
+  # While the repository is private there are no untrusted forks (ADR-0011's
+  # stated premise), so the router runs on the box and bills nothing. When the
+  # repository is public it must be hosted, because by then it is reachable by
+  # code nobody has reviewed. An absent `private` field formats as empty and is
+  # falsy, which sends the router hosted: that is the fail-closed direction for
+  # the router itself.
+  route:
+    name: Route
+    runs-on: ${{ (github.event.repository.private && fromJSON('["self-hosted","linux","aplan"]')) || fromJSON('["ubuntu-latest"]') }}
+    outputs:
+      runner: ${{ steps.route.outputs.runner }}
+      hosted: ${{ steps.route.outputs.hosted }}
+    steps:
+      # **Before any checkout.** The decision is taken from the event payload,
+      # which the pull request cannot alter, and never from content it supplies.
+      # There is no checkout in this job at all, which is the strongest form of
+      # that property: there is nothing here for a fork to influence.
+      - id: route
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          # `format` turns a null or missing field into an empty string rather
+          # than the literal `null`, so a malformed payload is falsy and the
+          # branch below sends the work to a hosted runner.
+          IS_PRIVATE: ${{ format('{0}', github.event.repository.private) }}
+        run: |
+          set -euo pipefail
+          box='["self-hosted","linux","aplan"]'
+          hosted='["ubuntu-latest"]'
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            # A push, a tag, a schedule or a dispatch is base-controlled: the
+            # workflow and the code are both what the repository already holds.
+            echo "runner=$box" >> "$GITHUB_OUTPUT"
+            echo "hosted=false" >> "$GITHUB_OUTPUT"
+          elif [ "$IS_PRIVATE" = "true" ]; then
+            # Private: a fork pull request cannot exist, because forking needs
+            # access. This is the clause that keeps a private repository at zero
+            # hosted minutes, and it is the clause to delete if that premise
+            # ever stops holding.
+            echo "runner=$box" >> "$GITHUB_OUTPUT"
+            echo "hosted=false" >> "$GITHUB_OUTPUT"
+          else
+            # Public, and a pull request. **Every** pull request goes hosted,
+            # whether or not it comes from a fork.
+            #
+            # An author allow-list was considered and rejected. `alint` carries
+            # one and holds its capacity switch off, so every pull request there
+            # goes hosted anyway; the list is maintenance that currently buys
+            # nothing. It is also the thing that failed there: its rejected
+            # shortcuts record that a same-repository *bot* pull request passed a
+            # name-based trust test. A rule with no list cannot be wrong about
+            # who is on it.
+            echo "runner=$hosted" >> "$GITHUB_OUTPUT"
+            echo "hosted=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Say what was decided
+        run: |
+          echo "event=${{ github.event_name }}"
+          echo "private=${{ format('{0}', github.event.repository.private) }}"
+          echo "head_repo_id=${{ format('{0}', github.event.pull_request.head.repo.id) }}"
+          echo "base_repo_id=${{ format('{0}', github.event.repository.id) }}"
+          echo "ROUTED_TO=${{ steps.route.outputs.runner }} hosted=${{ steps.route.outputs.hosted }}"
+
+  # Stands in for aplan's six ci.yml jobs: it runs wherever the router says.
+  test:
+    name: build + test
+    needs: route
+    runs-on: ${{ fromJSON(needs.route.outputs.runner) }}
+    steps:
+      - run: |
+          echo "PROOF: ran on ${{ needs.route.outputs.runner }} (hosted=${{ needs.route.outputs.hosted }})"
+          echo "PROOF: runner.name=$RUNNER_NAME os=$RUNNER_OS"
