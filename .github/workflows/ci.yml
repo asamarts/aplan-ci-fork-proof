@@ -90,22 +90,3 @@ jobs:
       - run: |
           echo "PROOF: ran on ${{ needs.route.outputs.runner }} (hosted=${{ needs.route.outputs.hosted }})"
           echo "PROOF: runner.name=$RUNNER_NAME os=$RUNNER_OS"
-
-  # ------------------------------------------------------------------------
-  # THE CANARY. A fork pull request supplies the workflow file that runs, so
-  # it can ignore the router entirely and name the box's label itself. This
-  # job is what an attacker would add. It proves whether a persistent
-  # fixed-label runner is reachable by code nobody has reviewed -- which is
-  # the shortcut `alint`'s design note rejects as "workflow predicate plus
-  # persistent fixed label: the PR can edit its workflow and target the label
-  # directly".
-  #
-  # Safe here: no runner is registered to this fixture, so the job can only
-  # queue. In `aplan` after the flip a runner *is* registered, and that is the
-  # finding.
-  bypass-canary:
-    name: CANARY targets the box label directly
-    runs-on: [self-hosted, linux, aplan]
-    steps:
-      - run: |
-          echo "CANARY: untrusted code executed on $RUNNER_NAME"
