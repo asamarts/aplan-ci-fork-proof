@@ -16,3 +16,5 @@ no runner registered to it. The jobs echo markers instead of building anything,
 because what is under test is the routing decision and the two refusals.
 
 Delete it once `A1-117` is closed.
+
+An untrusted contributor edited this line.
