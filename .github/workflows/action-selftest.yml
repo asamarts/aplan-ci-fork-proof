@@ -14,6 +14,14 @@ permissions:
 jobs:
   selftest:
     name: Self-test
+    # **The refusal is a job condition, not a step** -- proved, not assumed.
+    # Written as a step first, and the fork pull request showed why that is
+    # wrong: a step cannot run until the job has been assigned a runner, so
+    # the job sat queued against the box's label waiting for the box to pick
+    # up untrusted work and refuse it. On a repository where that runner is
+    # registered it would have been picked up. A job-level `if` is evaluated
+    # before any assignment, so the job is skipped and never queued at all.
+    if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
     runs-on: [self-hosted, linux, aplan]
     steps:
       # **Refusal, not redirection.** Unlike the release workflow this one *is*
@@ -21,10 +29,5 @@ jobs:
       # the paths a contributor editing the action would touch. It drives the
       # action against this repository's own release artefacts, which is the
       # same argument as the release workflow, so it refuses too.
-      - name: Refuse an untrusted event
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        run: |
-          echo "refusing: ${{ github.event_name }} may not run the self-test" >&2
-          exit 1
       - run: |
           echo "PROOF: selftest body reached on $RUNNER_NAME"

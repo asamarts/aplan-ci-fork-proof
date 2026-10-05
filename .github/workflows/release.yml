@@ -10,6 +10,14 @@ permissions:
 jobs:
   release:
     name: Release
+    # **The refusal is a job condition, not a step** -- proved, not assumed.
+    # Written as a step first, and the fork pull request showed why that is
+    # wrong: a step cannot run until the job has been assigned a runner, so
+    # the job sat queued against the box's label waiting for the box to pick
+    # up untrusted work and refuse it. On a repository where that runner is
+    # registered it would have been picked up. A job-level `if` is evaluated
+    # before any assignment, so the job is skipped and never queued at all.
+    if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
     runs-on: [self-hosted, linux, aplan]
     steps:
       # **Refusal, not redirection** (`A1-117`). A pull request has no business
@@ -20,10 +28,5 @@ jobs:
       # `on:` already omits `pull_request`, so this is unreachable today. The
       # guard is here so that it stays unreachable if somebody later adds the
       # trigger, which is the edit this refusal exists to survive.
-      - name: Refuse an untrusted event
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-        run: |
-          echo "refusing: ${{ github.event_name }} may not run the release workflow" >&2
-          exit 1
       - run: |
           echo "PROOF: release body reached on $RUNNER_NAME"
