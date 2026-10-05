@@ -17,7 +17,7 @@ jobs:
     # up untrusted work and refuse it. On a repository where that runner is
     # registered it would have been picked up. A job-level `if` is evaluated
     # before any assignment, so the job is skipped and never queued at all.
-    if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, linux, aplan]
     steps:
       # **Refusal, not redirection** (`A1-117`). A pull request has no business

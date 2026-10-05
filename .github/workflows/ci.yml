@@ -47,7 +47,11 @@ jobs:
           set -euo pipefail
           box='["self-hosted","linux","aplan"]'
           hosted='["ubuntu-latest"]'
-          if [ "$EVENT_NAME" != "pull_request" ]; then
+          case "$EVENT_NAME" in
+            push|workflow_dispatch|schedule) trusted=yes ;;
+            *) trusted=no ;;
+          esac
+          if [ "$trusted" = "yes" ]; then
             # A push, a tag, a schedule or a dispatch is base-controlled: the
             # workflow and the code are both what the repository already holds.
             echo "runner=$box" >> "$GITHUB_OUTPUT"
@@ -73,7 +77,7 @@ jobs:
             echo "runner=$hosted" >> "$GITHUB_OUTPUT"
             echo "hosted=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Say what was decided
+      - name: Say what was decided, and from what
         run: |
           echo "event=${{ github.event_name }}"
           echo "private=${{ format('{0}', github.event.repository.private) }}"
@@ -90,3 +94,15 @@ jobs:
       - run: |
           echo "PROOF: ran on ${{ needs.route.outputs.runner }} (hosted=${{ needs.route.outputs.hosted }})"
           echo "PROOF: runner.name=$RUNNER_NAME os=$RUNNER_OS"
+
+  # The job under test in this third pull request: it must fail, loudly, with the
+  # reason, whenever the run was routed hosted.
+  hosted-path:
+    name: hosted runners cannot run these checks yet
+    needs: route
+    if: needs.route.outputs.hosted == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "PROOF: hosted-path fired; a hosted run cannot validate a change" >&2
+          exit 1
