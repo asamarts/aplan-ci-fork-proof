@@ -26,4 +26,5 @@ jobs:
         run: |
           echo "refusing: ${{ github.event_name }} may not run the self-test" >&2
           exit 1
-      - run: echo "PROOF: selftest body reached on $RUNNER_NAME"
+      - run: |
+          echo "PROOF: selftest body reached on $RUNNER_NAME"
