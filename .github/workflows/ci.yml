@@ -95,6 +95,16 @@ jobs:
           echo "PROOF: ran on ${{ needs.route.outputs.runner }} (hosted=${{ needs.route.outputs.hosted }})"
           echo "PROOF: runner.name=$RUNNER_NAME os=$RUNNER_OS"
 
+  # A pull request owns this workflow, so it can bypass the router and name the
+  # old persistent label directly. ADR-0045's boundary is that the public
+  # repository has no registered runner for GitHub to assign this job to.
+  direct-label-canary:
+    name: CANARY names the old box label directly
+    runs-on: [self-hosted, linux, aplan]
+    steps:
+      - run: |
+          echo "CANARY: untrusted code executed on $RUNNER_NAME"
+
   # The job under test in this third pull request: it must fail, loudly, with the
   # reason, whenever the run was routed hosted.
   hosted-path:
